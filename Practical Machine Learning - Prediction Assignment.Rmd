@@ -1,0 +1,121 @@
+---
+title: "Practical Machine Learning - Prediction Assignment Writeup"
+author: "Kareem Gamgoum"
+date: "7 March 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Data Preparation
+
+```{r, include = FALSE}
+library(RCurl)
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(ggplot2)
+library(e1071)
+library(gbm)
+library(doParallel)
+library(survival)
+library(splines)
+library(plyr)
+```
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+Used the below statements to load the data.
+Note: Replacing missing values such as NA, #DIV/0! or blanks as NA
+
+```{r}
+trainurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testurl <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+trainData <- read.csv(text=getURL(trainurl), na.strings=c("NA","#DIV/0!", ""))
+testData <- read.csv(text=getURL(testurl), na.strings=c("NA","#DIV/0!", ""))
+```
+
+I've then removed any column which contains an NA entry, as I do not want to use these variables in the prediction model. I've also removed the first few columns as these should not be included in the model
+
+```{r}
+trainData<-trainData[,colSums(is.na(trainData)) == 0]
+testData <-testData[,colSums(is.na(testData)) == 0]
+trainData <- trainData[, 7:dim(trainData)[2]]
+testData <- testData[, 7:dim(testData)[2]]
+```
+
+Ran a final check for any variables with a near zero variance to exclude from my models
+
+```{r}
+nearZeroVar(trainData)
+nearZeroVar(testData)
+```
+
+## Partition Data
+
+We start by splitting the trainData set into training data and validation data, with 60% of the training data set used for training and 40% of the training data set used for validation
+
+```{r}
+set.seed(3141)
+trainSet <- createDataPartition(trainData$classe, p=0.6, list = FALSE)
+training <- trainData[trainSet,]
+validation <- trainData[-trainSet,]
+```
+
+## Creating our Model
+
+Now we have split the data set into training and validation sets we can create our models. I have used the random forest method for creating my model as this is a good method for large datasets.
+
+```{r}
+mod_rf <- randomForest(classe ~ ., data = training)
+print(mod_rf)
+```
+
+As you can see above our model applied to the training set is very close to the classe, which is as expected as we are evaluating the model with the same data that trained the model
+
+## Predicting using our model (Out of Sample)
+
+We can now predict values based on our model
+
+```{r}
+predCrossValidation_rf <- predict(mod_rf, validation)
+confusionMatrix(predCrossValidation_rf, validation$classe)
+```
+
+As you can see above the cross validation accuracy is 99.7% and so therefore the out of sample error is 0.3%, which means that this model is quite good.
+
+## Applying the model to the test dataset
+
+Applying this model to the test set yields the following results
+
+```{r}
+predTest_rf <- predict(mod_rf, testData)
+predTest_rf
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
